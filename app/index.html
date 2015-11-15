@@ -17,14 +17,19 @@
     <!-- build:css styles/main.css -->
     <link rel="stylesheet" href="styles/main.css">
     <!-- endbuild -->
-    
+    <script src='https://cdn.firebase.com/js/client/2.2.1/firebase.js'></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js" />
     <script type="text/javascript" src="https://www.google.com/jsapi?sensor=true"></script>
+
   </head>
-  <body  onload="initialize()">
+  <body  onload="initMap()">
     <!--[if lt IE 10]>
       <p class="browserupgrade">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p>
     <![endif]-->
-    
+       <div id="floating-panel">
+      <!--<input type="button" value="Toggle visibility" onclick="overlay.toggle();"></input>
+      <input type="button" value="Toggle DOM attachment" onclick="overlay.toggleDOM();"></input>-->
+    </div>
     <div id="map" style="width: 320px; height: 480px;"></div>
     <div>
 <!--      <input id="address" type="textbox" value="Sydney, NSW">
@@ -39,11 +44,12 @@
     <!-- endbuild -->
     
     <!-- build:js scripts/main.js -->
-    <script src="scripts/main.js"></script> 
 <!--    <script src="scripts/overlay.js"</script> -->
+
     <!-- endbuild -->
-    <script type="text/javascript"
-      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCIpTqX_8JCJPoUWUYwJuvAq_Zm3sC0D0s&libraries=visualization&sensor=false&callback=initialize">
+    <script type="text/javascript" async defer
+      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCIpTqX_8JCJPoUWUYwJuvAq_Zm3sC0D0s&libraries=visualization,drawing&sensor=false&callback=initMap">
     </script>
+        <script src="scripts/main.js"></script>    
   </body>
 </html>
