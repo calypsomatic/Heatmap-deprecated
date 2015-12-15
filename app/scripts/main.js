@@ -2,7 +2,7 @@
         //Global variables
         var map, geocoder, home, loc = {};
         //Does this need to be kept locally?  Perhaps not
-        var heatmapData = heatmapData || [];
+        var heatmapData = new HeatMapData();
         //Reference to database of heatmap values
         // TODO: update to refer to specific user
         var dataRef = new Firebase('https://vivid-heat-3077.firebaseio.com/heatmap/users');
@@ -19,16 +19,8 @@
       //What is this used for?
       geocoder = new google.maps.Geocoder();
 
-      // Start with current location 
-      // Tests to find out which way to detect it
-      //Find center of map, set home to it
-     /* if (google.loader.ClientLocation){
-        loc.lat = google.loader.ClientLocation.latitude;
-        loc.lng = google.loader.ClientLocation.longitude;
-        home = new google.maps.LatLng(loc.lat, loc.lng);
-        home.resolve(); 
-      } else */if (navigator.geolocation){
-          //Continuously track
+      if (navigator.geolocation){
+          //TODO: Continuously track
           //source: https://www.youtube.com/watch?v=qYFkPFtfgdI
           /*var option = {
             enableHighAccuracy: true,
@@ -40,6 +32,7 @@
           navigator.geolocation.getCurrentPosition(function (pos) {
           loc = pos.coords || pos.coordinate || pos;
           home = new google.maps.LatLng(loc.latitude, loc.longitude); 
+          //home = new google.maps.LatLng(45.422,-72.1253);
         }, function (err) {
           alert(err.message);
         });
@@ -54,11 +47,7 @@
       //Maybe create own color style, so that default weight just blurs/fogs over map?
       //Read more about overlays 
       //God I don't know what I'm doing
-      map = new google.maps.Map(document.getElementById('map'), {
-        center: home,
-        zoom: 16,
-        mapTypeId: google.maps.MapTypeId.ROADMAP
-      });
+      map = new HeatMap(document.getElementById('map'), home);
 
       //Where you are, add data point
       if (home){
@@ -84,15 +73,14 @@
     //Send current location to heatmap database
     function updatePoint(location){
 
-      //TODO: define how fine-grained to display heat, so that we don't have weird pockets
-      // of explored/non-explored intermixed -- probably only need 4 digits after decimal -- maybe even just 2 or 3
-      //but will still need to do some work to make it not funny
+      //TODO: define how fine-grained to display heat
 
       //Distill this location to its location bucket
       var bucketed = bucketLoc(location);
 
       //TODO: Look into using promise instead
       var locID = $.Deferred();
+      var locVal = $.Deferred();
 
       //Have a database of locations, and then use the location ID for each user's data point
       locationRef.orderByChild("lat").equalTo(bucketed.lat).on("value", function(snapshot){
@@ -103,35 +91,50 @@
             //TODO: Probably not a good idea to use the same variable?
             if (value.lng == bucketed.lng) {
               locID.resolve(key);
+              console.log(key);
               return;
             }
             //If we get here, then the point was not already in the database
  //           addOrUpdatePoint(bucketed);
-            locID.resolve(bucketed);
+            locVal.resolve(bucketed);
           })
         } else {
           //The point was not already in the database
-          addOrUpdatePoint(bucketed);
+          locVal.resolve(bucketed);
         }
       });
 
       var addOrUpdatePoint = function(loc){
         //This point is not in the database yet, add it
         //TODO: Add callback to get the key for this point and set locID to it
+        var key;
+        console.log(loc);
         if (loc.lat && loc.lng){
-          locationRef.push({
+          key = locationRef.push({
             lat: loc.lat,
             lng: loc.lng
           });
         } else {
-          //we now have the key
+          key = loc; //we now have the key
           //Here should be changing the heat value of the point
         }
+        console.log(key);
+        myDataRef.child(key).push({
+          timestamp : new Date().toString(),
+          heatVal : 6
+        });
       }
 
       //This will either be the key for the location or the location itself
       $.when(locID).done(function(result){
         addOrUpdatePoint(result);
+      })
+
+      $.when(locVal).done(function(result){
+        locID.resolve(locationRef.push({
+            lat: loc.lat,
+            lng: loc.lng
+          }));
       })
 
 
@@ -141,7 +144,7 @@
       var lngString = 'lng/' + location.lng().toFixed(4).replace(/\./gi, ',') + '/' + location.lat().toFixed(4).replace(/\./gi, ',');
 
 
-
+/*
       myDataRef.child(latString).push({
 //        location : bucketed,
         timestamp : new Date().toString(),
@@ -152,11 +155,20 @@
 //        location : bucketed,
         timestamp : new Date().toString(),
         heatVal : 6
-      });
+      });*/
+      
+      //This is how it should be set up in the database
+      /*myDataRef.push({
+        locationKey: locID,
+        timestamp : new Date().toString(),
+        heatVal: 6
+      });*/
+
     }
 
 
     function tempHeatMap(){
+      //TODO: This should grab all the datapoints for a user and put them into the heat map data array
       myDataRef.on("value", function(data) {
         $.each(data.val(), function(key, value){
           var newDataPt = {location: new google.maps.LatLng(value.location.lat,value.location.lng), weight: value.heatVal};
