@@ -81,7 +81,6 @@ QUnit.test("HeatMap takes in data", function( assert ){
           weight: 6.5}]);
 	assert.ok(1);
 });
-
 QUnit.module("HeatMapLocation");
 QUnit.test("HeatMapLocation buckets locations", function( assert ) {
 	var loc = new HeatMapLocation(new google.maps.LatLng(42.39544,-71.12584));

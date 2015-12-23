@@ -13,6 +13,10 @@ HeatMap.prototype.addData = function(heatmapData){
 	this.heatmap.setMap(this.map);
 };
 
+HeatMap.prototype.getBounds = function(){
+  return this.map.getBounds();
+}
+
 
 var HeatMapData = function() {
 	return [];

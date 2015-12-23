@@ -30,12 +30,36 @@
 
           //Finds current position, sets global loc to match, updates center of map
           navigator.geolocation.getCurrentPosition(function (pos) {
-          loc = pos.coords || pos.coordinate || pos;
-          home = new google.maps.LatLng(loc.latitude, loc.longitude); 
-          //home = new google.maps.LatLng(45.422,-72.1253);
-        }, function (err) {
-          alert(err.message);
-        });
+            loc = pos.coords || pos.coordinate || pos;  
+           /* home = new google.maps.LatLng(42.3954,-71.1258);
+            map = new HeatMap(document.getElementById('map'), home);
+*/
+            home = new Promise(function (resolve, reject) {
+              resolve(new google.maps.LatLng(loc.latitude, loc.longitude));
+            }).then(function(result){
+              map = new HeatMap(document.getElementById('map'), result);
+              console.log(new Date().getTime(), " ", result);
+              var currLoc = new HeatMapLocation(result);
+  //            heatmapData.push(currLoc);
+              //addLocation(currLoc);
+              var key = currLoc.key(locationRef);
+              key.then(function (result){
+                //console.log(result);
+              })
+            });
+//          home = new google.maps.LatLng(loc.latitude, loc.longitude); */
+            if (map){
+              console.log("map present");
+              if (map.getBounds){
+                console.log("get bounds present");
+                getLocalPoints(map.getBounds());              
+              } else {
+                getLocalPoints(map);
+              }
+            }
+          }, function (err) {
+            alert(err.message);
+          });
       } else {
         //A default value
         alert("No locator ability");
@@ -47,10 +71,17 @@
       //Maybe create own color style, so that default weight just blurs/fogs over map?
       //Read more about overlays 
       //God I don't know what I'm doing
-      map = new HeatMap(document.getElementById('map'), home);
+      //console.log(home);
 
       //Where you are, add data point
-      if (home){
+      /*home.then(function (result){
+        home = new HeatMapLocation(home);
+        console.log(home);
+        heatmapData.push(home);
+    });*/
+  
+
+/*      if (home){
         updatePoint(home);
       }
 
@@ -58,17 +89,85 @@
 
       heatMap();
 
-      setHeatMap();
+      setHeatMap();*/
       //draw heatmap
       /*if (map && home && loc) {
 	      heatMap();
 	     };*/
 
-       //Separate showmap function/or is that what initialize should be?
-
-       //Reload showmap when browser resized
-
     };
+
+
+    //Should take in the bounds of the currently viewed map,
+    //So as to only grab data that would be visible
+    function getLocalPoints(bounds){
+      console.log(bounds);
+      /* get keys of locations within lat, lng
+        if they are in the user's database, add them to heatmapdata */
+      var west = bounds.getSouthWest().lng();
+      var east = bounds.getNorthEast().lng();
+      var north = bounds.getNorthEast().lat();
+      var south = bounds.getSouthWest().lat();
+      console.log(west, " ", east, " ", north, " ", south);
+      /*  locationRef.once("value", function(data){
+          console.log(data);
+        })*/
+      //TODO: do I need to worry about negative numbers wrapping around, start at north end at south
+      //What about converting from number to string
+      if (bounds.contains){
+        locationRef.orderByChild("lat").startAt(south.toString()).endAt(north.toString())
+          .on("value", function(snapshot) {
+            if (snapshot.val()) {
+              $.each(snapshot.val(), function(key, value) {
+                  if ( bounds.contains( new google.maps.LatLng( value.lat, value.lng ) ) ) {
+                    //get key, see if user has it, then add it to heatmap
+                    addtoHeatMap(key);
+                  }
+              })
+            }
+          });
+      }
+    }
+
+    function addtoHeatMap(key){
+      myDataRef.orderByKey().equalTo(key).on("value", function(snapshot){
+        snapshot.forEach(function(data) {
+          console.log(data);
+        })
+      })
+    }
+      //How to get datapoints within those bounds?  Need to sort by locations, which 
+      //is already the key, then get datapoints within those bounds - use querying data
+      //Look into .indexOn to make sure this is indexed appropriately.  Might need to 
+      //be nested for lat and long?
+      //Probably need to query for one first, get only the ones that are within lat, then
+      //out of that subset query for long? Or two queries and then only keep the intersection?
+
+      //Then something like this
+      /*myDataRef.orderByChild("lat").startAt(40).endAt(45)
+        .on("value", function(snapshot) {
+          //console.log(snapshot);
+          snapshot.forEach(function(data) {
+            console.log(data);
+            //heatMapData.push({location: data.location, weight: data.weight});
+          });
+      });*/
+
+      //Second call for long???
+      /*myDataRef.orderByChild("location/long").startAt(bounds.minLong).endAt(bounds.maxLong)
+        .on("value", function(snapshot) {
+          snapshot.forEach(function(data) {
+            //Need to create a second array to do an intersection?
+            //No a little more complicated because they're objects and we're matching by location property...
+            });
+      });*/
+
+    function addLocation(loc) {
+      //Add to heatmapdata
+      heatmapdata.push({location: loc, weight: 6});
+
+
+    }
 
     //Send current location to heatmap database
     function updatePoint(location){
