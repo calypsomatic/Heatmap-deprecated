@@ -38,24 +38,17 @@
               resolve(new google.maps.LatLng(loc.latitude, loc.longitude));
             }).then(function(result){
               map = new HeatMap(document.getElementById('map'), result);
-              console.log(new Date().getTime(), " ", result);
               var currLoc = new HeatMapLocation(result);
-  //            heatmapData.push(currLoc);
-              //addLocation(currLoc);
-              var key = currLoc.key(locationRef);
-              key.then(function (result){
-                //console.log(result);
-              })
+              addLocationToUserDB(currLoc);
             });
-//          home = new google.maps.LatLng(loc.latitude, loc.longitude); */
+
             if (map){
-              console.log("map present");
               if (map.getBounds){
-                console.log("get bounds present");
                 getLocalPoints(map.getBounds());              
               } else {
                 getLocalPoints(map);
               }
+
             }
           }, function (err) {
             alert(err.message);
@@ -101,27 +94,22 @@
     //Should take in the bounds of the currently viewed map,
     //So as to only grab data that would be visible
     function getLocalPoints(bounds){
-      console.log(bounds);
       /* get keys of locations within lat, lng
         if they are in the user's database, add them to heatmapdata */
-      var west = bounds.getSouthWest().lng();
-      var east = bounds.getNorthEast().lng();
+     /* var west = bounds.getSouthWest().lng();
+      var east = bounds.getNorthEast().lng();*/
       var north = bounds.getNorthEast().lat();
       var south = bounds.getSouthWest().lat();
-      console.log(west, " ", east, " ", north, " ", south);
-      /*  locationRef.once("value", function(data){
-          console.log(data);
-        })*/
       //TODO: do I need to worry about negative numbers wrapping around, start at north end at south
-      //What about converting from number to string
       if (bounds.contains){
         locationRef.orderByChild("lat").startAt(south.toString()).endAt(north.toString())
           .on("value", function(snapshot) {
             if (snapshot.val()) {
               $.each(snapshot.val(), function(key, value) {
-                  if ( bounds.contains( new google.maps.LatLng( value.lat, value.lng ) ) ) {
+                  var point = new google.maps.LatLng(value.lat, value.lng);
+                  if ( bounds.contains( point ) ) {
                     //get key, see if user has it, then add it to heatmap
-                    addtoHeatMap(key);
+                    addtoHeatMap(key, point);
                   }
               })
             }
@@ -129,152 +117,39 @@
       }
     }
 
-    function addtoHeatMap(key){
-      myDataRef.orderByKey().equalTo(key).on("value", function(snapshot){
-        snapshot.forEach(function(data) {
-          console.log(data);
-        })
-      })
-    }
-      //How to get datapoints within those bounds?  Need to sort by locations, which 
-      //is already the key, then get datapoints within those bounds - use querying data
-      //Look into .indexOn to make sure this is indexed appropriately.  Might need to 
-      //be nested for lat and long?
-      //Probably need to query for one first, get only the ones that are within lat, then
-      //out of that subset query for long? Or two queries and then only keep the intersection?
-
-      //Then something like this
-      /*myDataRef.orderByChild("lat").startAt(40).endAt(45)
-        .on("value", function(snapshot) {
-          //console.log(snapshot);
-          snapshot.forEach(function(data) {
-            console.log(data);
-            //heatMapData.push({location: data.location, weight: data.weight});
-          });
-      });*/
-
-      //Second call for long???
-      /*myDataRef.orderByChild("location/long").startAt(bounds.minLong).endAt(bounds.maxLong)
-        .on("value", function(snapshot) {
-          snapshot.forEach(function(data) {
-            //Need to create a second array to do an intersection?
-            //No a little more complicated because they're objects and we're matching by location property...
-            });
-      });*/
-
-    function addLocation(loc) {
-      //Add to heatmapdata
-      heatmapdata.push({location: loc, weight: 6});
-
-
-    }
-
-    //Send current location to heatmap database
-    function updatePoint(location){
-
-      //TODO: define how fine-grained to display heat
-
-      //Distill this location to its location bucket
-      var bucketed = bucketLoc(location);
-
-      //TODO: Look into using promise instead
-      var locID = $.Deferred();
-      var locVal = $.Deferred();
-
-      //Have a database of locations, and then use the location ID for each user's data point
-      locationRef.orderByChild("lat").equalTo(bucketed.lat).on("value", function(snapshot){
-        if (snapshot.val()){
-          $.each(snapshot.val(), function(key, value) {
-            //Once we find the matching location, we want to set locID to be the 
-            //key to that location in the database
-            //TODO: Probably not a good idea to use the same variable?
-            if (value.lng == bucketed.lng) {
-              locID.resolve(key);
-              console.log(key);
-              return;
-            }
-            //If we get here, then the point was not already in the database
- //           addOrUpdatePoint(bucketed);
-            locVal.resolve(bucketed);
-          })
-        } else {
-          //The point was not already in the database
-          locVal.resolve(bucketed);
-        }
-      });
-
-      var addOrUpdatePoint = function(loc){
-        //This point is not in the database yet, add it
-        //TODO: Add callback to get the key for this point and set locID to it
-        var key;
-        console.log(loc);
-        if (loc.lat && loc.lng){
-          key = locationRef.push({
-            lat: loc.lat,
-            lng: loc.lng
-          });
-        } else {
-          key = loc; //we now have the key
-          //Here should be changing the heat value of the point
-        }
-        console.log(key);
-        myDataRef.child(key).push({
-          timestamp : new Date().toString(),
-          heatVal : 6
-        });
-      }
-
-      //This will either be the key for the location or the location itself
-      $.when(locID).done(function(result){
-        addOrUpdatePoint(result);
-      })
-
-      $.when(locVal).done(function(result){
-        locID.resolve(locationRef.push({
-            lat: loc.lat,
-            lng: loc.lng
-          }));
-      })
-
-
-
-      var time = new Date().toString();
-      var latString = 'lat/' + location.lat().toFixed(4).replace(/\./gi, ',') + '/' + location.lng().toFixed(4).replace(/\./gi, ',');
-      var lngString = 'lng/' + location.lng().toFixed(4).replace(/\./gi, ',') + '/' + location.lat().toFixed(4).replace(/\./gi, ',');
-
-
-/*
-      myDataRef.child(latString).push({
-//        location : bucketed,
-        timestamp : new Date().toString(),
-        heatVal : 6
-      });
-
-      myDataRef.child(lngString).push({
-//        location : bucketed,
-        timestamp : new Date().toString(),
-        heatVal : 6
-      });*/
-      
-      //This is how it should be set up in the database
-      /*myDataRef.push({
-        locationKey: locID,
-        timestamp : new Date().toString(),
-        heatVal: 6
-      });*/
-
-    }
-
-
-    function tempHeatMap(){
-      //TODO: This should grab all the datapoints for a user and put them into the heat map data array
-      myDataRef.on("value", function(data) {
-        $.each(data.val(), function(key, value){
-          var newDataPt = {location: new google.maps.LatLng(value.location.lat,value.location.lng), weight: value.heatVal};
-          heatmapData.push(newDataPt);
-        });
-      });
+    function displayHeatMap(){
       console.log(heatmapData);
+      var heatmap = new google.maps.visualization.HeatmapLayer({
+        data: heatmapData
+      });
+      heatmap.setMap(map.map);
+    }
+
+    function addtoHeatMap(key, point){
+      var loc = new HeatMapLocation(point);
+      myDataRef.orderByKey().equalTo(key).on("value", function(snapshot){
+        if (snapshot.val()){
+        $.each(snapshot.val(), function(key, value){
+          //add this point to heatmapdata
+          heatmapData.push({location: point, weight: value.weight});
+        })
+      } else {
+        //add to heatmapdata with value unvisited -- whatever that value should be
+        heatmapData.push({location: point, weight: 6});
+      }
+      })
+    }
+
+    function addLocationToUserDB(point){
+        //first get key
+        point.key(locationRef).then(function(result){
+          //now see if userDB already has point
+          myDataRef.child(result).update({
+            lat: point.lat(),
+            lng: point.lng(),
+            weight: 0
+          });
+        });
     }
 
     //Should take in the bounds of the currently viewed map,
@@ -377,9 +252,6 @@
         new google.maps.LatLng(37.785, -122.437),
         new google.maps.LatLng(37.785, -122.435)
       ];
-
-      function addHeatMapPoint(){
-      }
 
       var currloc;
       //Get current location, add it to heatmapdata

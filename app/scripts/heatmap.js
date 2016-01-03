@@ -56,9 +56,7 @@ HeatMapLocation.prototype.key = function(databaseref){
   var thisLoc = this.loc;
 
   var promise = new Promise(function( resolve, reject ) {
-    //var found = false;
     databaseref.orderByChild("lat").equalTo(thisLoc.lat).on("value", function(snapshot){
-  //    var found;
       if ( snapshot.val() ) {
         $.each(snapshot.val(), function(key, value) {
           //Once we find the matching location, we want to set locID to be the 
